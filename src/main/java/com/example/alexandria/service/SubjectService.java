@@ -38,7 +38,6 @@ public class SubjectService {
     public SubjectDTO create(SubjectDTO subject) {
         validate(subject);
         var savedSubject = subjectRepository.save(Subject.builder()
-                .id(subject.id())
                 .subjectName(subject.subjectName())
                 .build());
         return mapSubject(savedSubject);

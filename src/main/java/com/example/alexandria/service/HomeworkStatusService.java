@@ -30,10 +30,7 @@ public class HomeworkStatusService {
 
     private void reconcile(Homework homework) {
         for (Student student : studentRepository.findByGroupName(homework.getGroup().getName())) {
-            if (homeworkStatusRepository.findByHomeworkIdAndStudentId(homework.getId(), student.getId()).isEmpty()) {
-                homeworkStatusRepository.save(HomeworkStatus.builder().homework(homework).student(student)
-                        .isDone(false).markedAt(Instant.now()).build());
-            }
+            homeworkStatusRepository.insertIfAbsent(homework.getId(), student.getId());
         }
     }
 

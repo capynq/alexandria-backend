@@ -39,7 +39,6 @@ public class ScheduleService {
     public ScheduleDTO create(ScheduleDTO schedule) {
         validate(schedule);
         var savedSchedule = scheduleRepository.save(Schedule.builder()
-                .id(schedule.id())
                 .dayOfWeek(schedule.dayOfWeek())
                 .lessonNum(schedule.lessonNum())
                 .weekType(schedule.weekType())

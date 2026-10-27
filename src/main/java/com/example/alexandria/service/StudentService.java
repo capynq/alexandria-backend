@@ -1,6 +1,5 @@
 package com.example.alexandria.service;
 
-import com.example.alexandria.exception.UserNotFoundException;
 import com.example.alexandria.repository.StudentRepository;
 import com.example.alexandria.repository.entity.Group;
 import com.example.alexandria.repository.entity.Student;
@@ -9,6 +8,7 @@ import com.example.alexandria.service.dto.StudentDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -31,11 +31,11 @@ public class StudentService {
     public StudentDTO logIn(StudentDTO student) {
         requireCredentials(student.login(), student.password());
         var foundStudent = studentRepository.findByLogin(student.login())
-                .orElseThrow(() -> new UserNotFoundException("Student not found with login: " + student.login()));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
         if (PasswordUtil.checkPassword(student.password(), foundStudent.getPassword())) {
             return mapStudent(foundStudent);
         } else {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
     }
 
@@ -67,6 +67,7 @@ public class StudentService {
         studentRepository.save(studentToUpdate);
     }
 
+    @Transactional
     public StudentDTO create(StudentDTO student) {
         requireCredentials(student.login(), student.password());
         if (student.fullName() == null || student.fullName().trim().length() < 5) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid full name");
@@ -79,7 +80,6 @@ public class StudentService {
                     .build());
         }
         var savedStudent = studentRepository.save(Student.builder()
-                .id(student.id())
                 .fullName(student.fullName())
                 .login(student.login())
                 .password(hashedPassword)
@@ -88,6 +88,7 @@ public class StudentService {
         return mapStudent(savedStudent);
     }
 
+    @Transactional
     public List<StudentDTO> createStudents(List<StudentDTO> students) {
         return students.stream()
                 .map(this::create)
@@ -95,7 +96,7 @@ public class StudentService {
     }
 
     private void requireCredentials(String login, String password) {
-        if (login == null || login.trim().length() < 3 || password == null || password.length() < 6) {
+        if (login == null || login.trim().length() < 3 || password == null || password.length() < 6 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials");
         }
     }

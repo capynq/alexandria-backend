@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -102,5 +103,49 @@ class ApplicationIntegrationTest {
         mvc.perform(post("/api/homework").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/homework/search/id/999999")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void transferredStudentKeepsHistoryButCannotCompleteOldGroupHomework() throws Exception {
+        String response = mvc.perform(post("/api/homework").contentType(MediaType.APPLICATION_JSON).content(homework(groupId))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long id = json.readTree(response).get("id").asLong();
+        jdbc.update("UPDATE students SET group_name = 'B1' WHERE id = 200");
+        mvc.perform(get("/api/homework-status/student/200")).andExpect(status().isOk()).andExpect(jsonPath("$[0].homework_id").value(id));
+        mvc.perform(put("/api/homework-status/mark/{homework}/{student}", id, 200)).andExpect(status().isConflict());
+    }
+
+    @Test
+    void concurrentReconciliationCreatesOnlyOneStatus() throws Exception {
+        String response = mvc.perform(post("/api/homework").contentType(MediaType.APPLICATION_JSON).content(homework(groupId))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        long id = json.readTree(response).get("id").asLong();
+        jdbc.update("INSERT INTO students(id, full_name, login, password, group_name) VALUES (202, 'Student Three', 'third', 'hashed-password', 'A1')");
+        var pool = Executors.newFixedThreadPool(2);
+        try {
+            var first = pool.submit(() -> mvc.perform(get("/api/homework-status/student/202")).andReturn().getResponse().getStatus());
+            var second = pool.submit(() -> mvc.perform(get("/api/homework-status/student/202")).andReturn().getResponse().getStatus());
+            assertThat(first.get()).isEqualTo(200);
+            assertThat(second.get()).isEqualTo(200);
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM homework_status WHERE homework_id = ? AND student_id = 202", Integer.class, id)).isEqualTo(1);
+    }
+
+    @Test
+    void rejectsMalformedIdsAndInvalidTeacherPasswordAndKeepsBulkCreateAtomic() throws Exception {
+        mvc.perform(get("/api/homework/search/id/not-a-number")).andExpect(status().isBadRequest());
+        mvc.perform(put("/api/teachers/update/teacher").contentType(MediaType.APPLICATION_JSON).content("{\"password\":\"short\"}"))
+                .andExpect(status().isBadRequest());
+        String bulk = "[{\"full_name\":\"Student Valid\",\"login\":\"validone\",\"password\":\"secret123\",\"group_name\":\"A1\"},{\"full_name\":\"Bad\",\"login\":\"bad\",\"password\":\"secret123\",\"group_name\":\"A1\"}]";
+        mvc.perform(post("/api/students/createMany").contentType(MediaType.APPLICATION_JSON).content(bulk)).andExpect(status().isBadRequest());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM students WHERE login = 'validone'", Integer.class)).isZero();
+    }
+
+    @Test
+    void clientSuppliedIdCannotOverwriteExistingStudent() throws Exception {
+        String create = "{\"id\":200,\"full_name\":\"Student New\",\"login\":\"newstudent\",\"password\":\"secret123\",\"group_name\":\"A1\"}";
+        mvc.perform(post("/api/students/create").contentType(MediaType.APPLICATION_JSON).content(create))
+                .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.id").value(org.hamcrest.Matchers.not(200)));
+        assertThat(jdbc.queryForObject("SELECT login FROM students WHERE id = 200", String.class)).isEqualTo("student");
     }
 }

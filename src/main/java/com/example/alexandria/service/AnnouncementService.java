@@ -61,7 +61,6 @@ public class AnnouncementService {
     public AnnouncementDTO create(AnnouncementDTO announcement) {
         validate(announcement);
         var newAnnouncement = announcementRepository.save(Announcement.builder()
-                .id(announcement.id())
                 .title(announcement.title())
                 .content(announcement.content())
                 .authorId(Teacher.builder().id(announcement.authorId()).build())

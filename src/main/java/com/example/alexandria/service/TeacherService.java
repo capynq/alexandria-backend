@@ -1,6 +1,5 @@
 package com.example.alexandria.service;
 
-import com.example.alexandria.exception.UserNotFoundException;
 import com.example.alexandria.repository.TeacherRepository;
 import com.example.alexandria.repository.entity.Teacher;
 import com.example.alexandria.security.PasswordUtil;
@@ -47,11 +46,11 @@ public class TeacherService {
     public TeacherDTO logIn(TeacherDTO teacher) {
         requireCredentials(teacher.login(), teacher.password());
         var foundTeacher = teacherRepository.findByLogin(teacher.login())
-                .orElseThrow(() -> new UserNotFoundException("Teacher not found with login: " + teacher.login()));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
         if (PasswordUtil.checkPassword(teacher.password(), foundTeacher.getPassword())) {
             return mapTeacher(foundTeacher);
         } else {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
     }
 
@@ -76,10 +75,9 @@ public class TeacherService {
     public void update(String login, TeacherDTO teacher) {
         var teacherToUpdate = teacherRepository.findByLogin(login).orElseThrow();
         if (teacher.password() != null && !teacher.password().isEmpty()) {
+            if (teacher.password().length() < 6 || teacher.password().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid password");
             String hashedPassword = PasswordUtil.hashPassword(teacher.password());
             teacherToUpdate.setPassword(hashedPassword);
-        }
-        else {
         }
         teacherRepository.save(teacherToUpdate);
     }
@@ -128,7 +126,7 @@ public class TeacherService {
     }
 
     private void requireCredentials(String login, String password) {
-        if (login == null || login.trim().length() < 3 || password == null || password.length() < 6) {
+        if (login == null || login.trim().length() < 3 || password == null || password.length() < 6 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials");
         }
     }

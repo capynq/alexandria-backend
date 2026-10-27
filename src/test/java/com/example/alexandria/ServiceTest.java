@@ -184,6 +184,25 @@ class ServiceTest {
     }
 
     @Test
+    void subjectAssignmentAndDelete() {
+        SubjectRepository subjects = mock(SubjectRepository.class);
+        TeacherRepository teachers = mock(TeacherRepository.class);
+        SubjectService service = new SubjectService(subjects, teachers);
+        Subject subject = Subject.builder().id(8).subjectName("Math").build();
+        Teacher teacher = Teacher.builder().id(9).build();
+        when(subjects.findAll()).thenReturn(List.of(subject));
+        when(subjects.findAllById(List.of(8L))).thenReturn(List.of(subject));
+        when(teachers.findById(9L)).thenReturn(Optional.of(teacher));
+        assertThat(service.findSubjects()).hasSize(1);
+        service.assignSubjectsToTeacher(9L, List.of(8L));
+        assertThat(teacher.getSubjects()).containsExactly(subject);
+        verify(teachers).save(teacher);
+        service.delete(8L);
+        verify(subjects).deleteById(8L);
+        assertThatThrownBy(() -> service.assignSubjectsToTeacher(10L, List.of(8L))).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
     void groupCreateAndAssignTeacher() {
         GroupRepository groups = mock(GroupRepository.class);
         TeacherRepository teachers = mock(TeacherRepository.class);
@@ -197,6 +216,23 @@ class ServiceTest {
         service.assignGroupsToTeacher(9L, List.of(5L));
         assertThat(teacher.getGroups()).containsExactly(group);
         verify(teachers).save(teacher);
+    }
+
+    @Test
+    void groupLookupUpdateAndDelete() {
+        GroupRepository repo = mock(GroupRepository.class);
+        GroupService service = new GroupService(repo, mock(TeacherRepository.class));
+        Group group = Group.builder().id(5).name("A1").build();
+        when(repo.findGroupByName("A1")).thenReturn(Optional.of(group));
+        when(repo.findGroupById(5L)).thenReturn(Optional.of(group));
+        when(repo.findAll()).thenReturn(List.of(group));
+        when(repo.save(any(Group.class))).thenAnswer(call -> call.getArgument(0));
+        assertThat(service.findGroup("A1")).isSameAs(group);
+        assertThat(service.findGroup(5L).name()).isEqualTo("A1");
+        assertThat(service.findGroups()).hasSize(1);
+        assertThat(service.update(Group.builder().id(5).name("B1").build()).getName()).isEqualTo("B1");
+        service.delete(5L);
+        verify(repo).deleteById(5L);
     }
 
     @Test
