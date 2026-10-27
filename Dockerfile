@@ -4,7 +4,7 @@ COPY gradle gradle
 COPY gradlew build.gradle settings.gradle ./
 COPY config config
 COPY src src
-RUN ./gradlew --no-daemon bootJar
+RUN gradle --no-daemon bootJar
 
 FROM eclipse-temurin:17-jre-jammy@sha256:c35794d1348777e6bc310b9b7f420098ef8f37e988199549b545fded79a895a2
 WORKDIR /app
