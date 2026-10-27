@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -72,7 +73,7 @@ public class HomeworkStatusService {
         HomeworkStatus status = homeworkStatusRepository.findByHomeworkIdAndStudentId(homeworkId, studentId).orElseThrow();
         if (!status.isDone()) {
             status.setDone(true);
-            status.setMarkedAt(Instant.now());
+            status.setMarkedAt(Instant.now().truncatedTo(ChronoUnit.MICROS));
             homeworkStatusRepository.save(status);
         }
         return map(status);
