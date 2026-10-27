@@ -1,6 +1,10 @@
 pipeline {
     agent any
     tools { jdk "java17" }
+    parameters {
+        string(name: "SONAR_URL", defaultValue: "", description: "Optional SonarQube server URL")
+        string(name: "SONAR_CREDENTIAL_ID", defaultValue: "", description: "Optional Jenkins secret text credential ID")
+    }
     stages {
         stage("Clean") {
             steps { sh "./gradlew clean" }
@@ -18,8 +22,14 @@ pipeline {
             steps { sh "./gradlew check jacocoTestReport" }
         }
         stage("SonarQube") {
-            when { expression { return env.SONAR_HOST_URL && env.SONAR_TOKEN } }
-            steps { sh "./gradlew sonar" }
+            when { expression { return params.SONAR_URL?.trim() && params.SONAR_CREDENTIAL_ID?.trim() } }
+            steps {
+                withCredentials([string(credentialsId: params.SONAR_CREDENTIAL_ID, variable: "SONAR_TOKEN")]) {
+                    withEnv(["SONAR_HOST_URL=${params.SONAR_URL}"]) {
+                        sh "./gradlew sonar"
+                    }
+                }
+            }
         }
     }
     post {
