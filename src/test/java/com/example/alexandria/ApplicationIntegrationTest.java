@@ -17,11 +17,14 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CyclicBarrier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -120,9 +123,10 @@ class ApplicationIntegrationTest {
         long id = json.readTree(response).get("id").asLong();
         jdbc.update("INSERT INTO students(id, full_name, login, password, group_name) VALUES (202, 'Student Three', 'third', 'hashed-password', 'A1')");
         var pool = Executors.newFixedThreadPool(2);
+        var barrier = new CyclicBarrier(2);
         try {
-            var first = pool.submit(() -> mvc.perform(get("/api/homework-status/student/202")).andReturn().getResponse().getStatus());
-            var second = pool.submit(() -> mvc.perform(get("/api/homework-status/student/202")).andReturn().getResponse().getStatus());
+            var first = pool.submit(() -> { barrier.await(); return mvc.perform(get("/api/homework-status/student/202")).andReturn().getResponse().getStatus(); });
+            var second = pool.submit(() -> { barrier.await(); return mvc.perform(get("/api/homework-status/student/202")).andReturn().getResponse().getStatus(); });
             assertThat(first.get()).isEqualTo(200);
             assertThat(second.get()).isEqualTo(200);
         } finally {
@@ -147,5 +151,23 @@ class ApplicationIntegrationTest {
         mvc.perform(post("/api/students/create").contentType(MediaType.APPLICATION_JSON).content(create))
                 .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.id").value(org.hamcrest.Matchers.not(200)));
         assertThat(jdbc.queryForObject("SELECT login FROM students WHERE id = 200", String.class)).isEqualTo("student");
+    }
+
+    @Test
+    void passwordByteLimitAccepts72Utf8BytesAndRejectsMore() throws Exception {
+        String password = "é".repeat(36);
+        String valid = json.writeValueAsString(java.util.Map.of("full_name", "Student Unicode", "login", "unicode", "password", password, "group_name", "A1"));
+        mvc.perform(post("/api/students/create").contentType(MediaType.APPLICATION_JSON).content(valid)).andExpect(status().is2xxSuccessful());
+        String invalid = json.writeValueAsString(java.util.Map.of("full_name", "Student Unicode", "login", "unicode2", "password", password + "é", "group_name", "A1"));
+        mvc.perform(post("/api/students/create").contentType(MediaType.APPLICATION_JSON).content(invalid)).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void corsAllowsConfiguredOriginAndRejectsOthersAndPasswordQueries() throws Exception {
+        mvc.perform(options("/api/students").header("Origin", "http://localhost:3000").header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk()).andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:3000"));
+        mvc.perform(options("/api/students").header("Origin", "https://untrusted.example").header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/students").param("password", "secret123")).andExpect(status().isBadRequest());
     }
 }

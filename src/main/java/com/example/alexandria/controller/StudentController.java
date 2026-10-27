@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -20,18 +19,13 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/students")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequiredArgsConstructor
 public class StudentController {
     private final StudentService studentService;
 
     @GetMapping
-    public List<StudentDTO> getStudents(
-            @RequestParam(required = false) String full_name,
-            @RequestParam(required = false) String login,
-            @RequestParam(required = false) String password,
-            @RequestParam(required = false) String group_name
-    ) {
+    public List<StudentDTO> getStudents(@RequestParam(required = false) String password) {
+        if (password != null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Password query parameter is not supported");
         return studentService.findStudents();
     }
 
