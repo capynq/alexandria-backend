@@ -25,7 +25,7 @@ public class GroupService {
     public GroupDTO findGroup(Long id) {
         return groupRepository.findGroupById(id)
                 .map(this::mapGroup)
-                .orElse(null);
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Group not found"));
     }
 
     public List<GroupDTO> findGroups() {
@@ -42,6 +42,7 @@ public class GroupService {
     }
 
     public GroupDTO create(Group group) {
+        if (group.getName() == null || group.getName().isBlank() || group.getName().length() > 8) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid group");
         var savedGroup = groupRepository.save(Group.builder()
                 .name(group.getName())
                 .build());
@@ -57,8 +58,11 @@ public class GroupService {
 
     @Transactional
     public void assignGroupsToTeacher(long teacherId, List<Long> groupIds) {
-        var teacher = teacherRepository.findById(teacherId).orElseThrow(() -> new RuntimeException("Teacher not found"));
+        var teacher = teacherRepository.findById(teacherId).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Teacher not found"));
         List<Group> groups = groupRepository.findAllById(groupIds);
+        if (groups.size() != groupIds.stream().distinct().count()) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Group not found");
+        }
         teacher.setGroups(groups);
         teacherRepository.save(teacher);
 

@@ -5,6 +5,6 @@ import lombok.Builder;
 @Builder
 public record SubjectDTO(
         long id,
-        String subject_name
+        @com.fasterxml.jackson.annotation.JsonProperty("subject_name") String subjectName
 ) {
 }

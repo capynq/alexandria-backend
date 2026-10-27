@@ -1,13 +1,14 @@
 package com.example.alexandria.service.dto;
 
 import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Builder
 public record StudentDTO(
         long id,
-        String full_name,
+        @com.fasterxml.jackson.annotation.JsonProperty("full_name") String fullName,
         String login,
-        String password,
-        String group_name
+        @JsonProperty(access = JsonProperty.Access.WRITE_ONLY) String password,
+        @com.fasterxml.jackson.annotation.JsonProperty("group_name") String groupName
 ) {
 }

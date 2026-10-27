@@ -5,9 +5,9 @@ import lombok.Builder;
 @Builder
 public record HomeworkStatusDTO(
         long id,
-        long homework_id,
-        long student_id,
-        boolean is_done,
-        String marked_at
+        @com.fasterxml.jackson.annotation.JsonProperty("homework_id") long homeworkId,
+        @com.fasterxml.jackson.annotation.JsonProperty("student_id") long studentId,
+        @com.fasterxml.jackson.annotation.JsonProperty("is_done") boolean isDone,
+        @com.fasterxml.jackson.annotation.JsonProperty("marked_at") String markedAt
 ) {
 }

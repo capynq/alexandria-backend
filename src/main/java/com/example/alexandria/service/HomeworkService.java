@@ -2,6 +2,13 @@ package com.example.alexandria.service;
 
 
 import com.example.alexandria.repository.HomeworkRepository;
+import com.example.alexandria.repository.HomeworkStatusRepository;
+import com.example.alexandria.repository.StudentRepository;
+import com.example.alexandria.repository.GroupRepository;
+import com.example.alexandria.repository.entity.HomeworkStatus;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import com.example.alexandria.repository.entity.Group;
 import com.example.alexandria.repository.entity.Homework;
 import com.example.alexandria.repository.entity.Subject;
@@ -17,6 +24,9 @@ import java.util.List;
 @AllArgsConstructor
 public class HomeworkService {
     private final HomeworkRepository homeworkRepository;
+    private final HomeworkStatusRepository homeworkStatusRepository;
+    private final StudentRepository studentRepository;
+    private final GroupRepository groupRepository;
 
     public HomeworkDTO map(Homework homework) {
         return HomeworkDTO.builder()
@@ -24,9 +34,9 @@ public class HomeworkService {
                 .title(homework.getTitle())
                 .description(homework.getDescription())
                 .deadline(homework.getDeadline().toString())
-                .subject_id(homework.getSubject().getId())
-                .teacher_id(homework.getTeacher().getId())
-                .group_id(homework.getGroup().getId())
+                .subjectId(homework.getSubject().getId())
+                .teacherId(homework.getTeacher().getId())
+                .groupId(homework.getGroup().getId())
                 .build();
     }
 
@@ -48,30 +58,46 @@ public class HomeworkService {
                 .toList();
     }
 
+    @Transactional
     public HomeworkDTO create(HomeworkDTO homeworkDTO) {
+        validate(homeworkDTO);
+        Group group = groupRepository.findById(homeworkDTO.groupId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         var homework = homeworkRepository.save(Homework.builder()
                 .title(homeworkDTO.title())
                 .description(homeworkDTO.description())
                 .deadline(Instant.parse(homeworkDTO.deadline()))
-                .subject(Subject.builder().id(homeworkDTO.subject_id()).build())
-                .teacher(Teacher.builder().id(homeworkDTO.teacher_id()).build())
-                .group(Group.builder().id(homeworkDTO.group_id()).build())
+                .subject(Subject.builder().id(homeworkDTO.subjectId()).build())
+                .teacher(Teacher.builder().id(homeworkDTO.teacherId()).build())
+                .group(group)
                 .build());
+        studentRepository.findByGroupName(group.getName()).forEach(student -> homeworkStatusRepository.save(
+                HomeworkStatus.builder().homework(homework).student(student).isDone(false).markedAt(Instant.now()).build()));
         return map(homework);
     }
 
+    @Transactional
     public HomeworkDTO update(Long id, HomeworkDTO updatedHomework) {
+        validate(updatedHomework);
         Homework homeworkToUpdate = homeworkRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Homework not found for id: " + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Homework not found"));
 
-        homeworkToUpdate.setSubject(Subject.builder().id(updatedHomework.subject_id()).build());
-        homeworkToUpdate.setGroup(Group.builder().id(updatedHomework.group_id()).build());
-        homeworkToUpdate.setTeacher(Teacher.builder().id(updatedHomework.teacher_id()).build());
+        if (homeworkToUpdate.getGroup().getId() != updatedHomework.groupId() && homeworkStatusRepository.existsByHomeworkId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot change group after assignments exist");
+        }
+        homeworkToUpdate.setSubject(Subject.builder().id(updatedHomework.subjectId()).build());
+        homeworkToUpdate.setGroup(Group.builder().id(updatedHomework.groupId()).build());
+        homeworkToUpdate.setTeacher(Teacher.builder().id(updatedHomework.teacherId()).build());
         homeworkToUpdate.setTitle(updatedHomework.title());
         homeworkToUpdate.setDescription(updatedHomework.description());
         homeworkToUpdate.setDeadline(Instant.parse(updatedHomework.deadline()));
 
         var savedHomework = homeworkRepository.save(homeworkToUpdate);
         return map(savedHomework);
+    }
+    private void validate(HomeworkDTO value) {
+        if (value.title() == null || value.title().isBlank() || value.title().length() > 255 || value.description() == null || value.description().isBlank() || value.deadline() == null || value.groupId() <= 0 || value.subjectId() <= 0 || value.teacherId() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid homework");
+        }
+        try { Instant.parse(value.deadline()); } catch (RuntimeException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid deadline"); }
     }
 }

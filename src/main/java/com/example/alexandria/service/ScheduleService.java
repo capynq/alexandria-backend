@@ -19,7 +19,7 @@ public class ScheduleService {
     public ScheduleDTO findSchedule(Long id) {
         return scheduleRepository.findScheduleById(id)
                 .map(this::map)
-                .orElseThrow(() -> new RuntimeException("Schedule not found for id: " + id));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Schedule not found"));
     }
 
     public List<ScheduleDTO> findSchedules() {
@@ -30,35 +30,37 @@ public class ScheduleService {
     }
 
     public List<ScheduleDTO> findScheduleByGroupName(String groupName) {
-        return scheduleRepository.findScheduleByGroupId_Name(groupName)
+        return scheduleRepository.findScheduleByGroup_Name(groupName)
                 .stream()
                 .map(this::map)
                 .toList();
     }
 
     public ScheduleDTO create(ScheduleDTO schedule) {
+        validate(schedule);
         var savedSchedule = scheduleRepository.save(Schedule.builder()
                 .id(schedule.id())
-                .dayOfWeek(schedule.day_of_week())
-                .lessonNum(schedule.lesson_num())
-                .weekType(schedule.week_type())
-                .subject(Subject.builder().id(schedule.subject_id()).build())
-                .group(Group.builder().id(schedule.group_id()).build())
-                .teacher(Teacher.builder().id(schedule.teacher_id()).build())
+                .dayOfWeek(schedule.dayOfWeek())
+                .lessonNum(schedule.lessonNum())
+                .weekType(schedule.weekType())
+                .subject(Subject.builder().id(schedule.subjectId()).build())
+                .group(Group.builder().id(schedule.groupId()).build())
+                .teacher(Teacher.builder().id(schedule.teacherId()).build())
                 .build());
         return map(savedSchedule);
     }
 
     public void update(Long id, ScheduleDTO updatedSchedule) {
+        validate(updatedSchedule);
         Schedule scheduleToUpdate = scheduleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Schedule not found for id: " + id));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Schedule not found"));
 
-        scheduleToUpdate.setSubject(Subject.builder().id(updatedSchedule.subject_id()).build());
-        scheduleToUpdate.setGroup(Group.builder().id(updatedSchedule.group_id()).build());
-        scheduleToUpdate.setTeacher(Teacher.builder().id(updatedSchedule.teacher_id()).build());
-        scheduleToUpdate.setDayOfWeek(updatedSchedule.day_of_week());
-        scheduleToUpdate.setLessonNum(updatedSchedule.lesson_num());
-        scheduleToUpdate.setWeekType(updatedSchedule.week_type());
+        scheduleToUpdate.setSubject(Subject.builder().id(updatedSchedule.subjectId()).build());
+        scheduleToUpdate.setGroup(Group.builder().id(updatedSchedule.groupId()).build());
+        scheduleToUpdate.setTeacher(Teacher.builder().id(updatedSchedule.teacherId()).build());
+        scheduleToUpdate.setDayOfWeek(updatedSchedule.dayOfWeek());
+        scheduleToUpdate.setLessonNum(updatedSchedule.lessonNum());
+        scheduleToUpdate.setWeekType(updatedSchedule.weekType());
 
         scheduleRepository.save(scheduleToUpdate);
     }
@@ -70,12 +72,17 @@ public class ScheduleService {
     private ScheduleDTO map(Schedule schedule) {
         return ScheduleDTO.builder()
                 .id(schedule.getId())
-                .day_of_week(schedule.getDayOfWeek())
-                .subject_id(schedule.getSubject().getId())
-                .group_id(schedule.getGroup().getId())
-                .teacher_id(schedule.getTeacher().getId())
-                .week_type(schedule.getWeekType())
-                .lesson_num(schedule.getLessonNum())
+                .dayOfWeek(schedule.getDayOfWeek())
+                .subjectId(schedule.getSubject().getId())
+                .groupId(schedule.getGroup().getId())
+                .teacherId(schedule.getTeacher().getId())
+                .weekType(schedule.getWeekType())
+                .lessonNum(schedule.getLessonNum())
                 .build();
+    }
+    private void validate(ScheduleDTO schedule) {
+        if (schedule.dayOfWeek() == null || schedule.dayOfWeek().isBlank() || schedule.dayOfWeek().length() > 15 || schedule.lessonNum() < 1 || schedule.lessonNum() > 6 || schedule.weekType() < 1 || schedule.weekType() > 2 || schedule.groupId() <= 0 || schedule.teacherId() <= 0 || schedule.subjectId() <= 0) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid schedule");
+        }
     }
 }

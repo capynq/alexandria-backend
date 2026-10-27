@@ -9,8 +9,8 @@ public record AnnouncementDTO (
     long id,
     String title,
     String content,
-    long author_id,
-    Instant created_at,
-    Instant updated_at
+    @com.fasterxml.jackson.annotation.JsonProperty("author_id") long authorId,
+    @com.fasterxml.jackson.annotation.JsonProperty("created_at") Instant createdAt,
+    @com.fasterxml.jackson.annotation.JsonProperty("updated_at") Instant updatedAt
 ) {
 }

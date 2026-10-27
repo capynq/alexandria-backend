@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface HomeworkStatusRepository extends JpaRepository<HomeworkStatus, Long> {
@@ -13,4 +14,6 @@ public interface HomeworkStatusRepository extends JpaRepository<HomeworkStatus, 
     List<HomeworkStatus> findByHomeworkId(Long homeworkId);
 
     List<HomeworkStatus> findByStudentId(Long studentId);
+    Optional<HomeworkStatus> findByHomeworkIdAndStudentId(Long homeworkId, Long studentId);
+    boolean existsByHomeworkId(Long homeworkId);
 }
