@@ -1,15 +1,21 @@
 plugins {
-    id 'java'
-    id 'io.freefair.lombok' version '8.4'
-    id 'org.springframework.boot' version '3.2.0'
-    id 'io.spring.dependency-management' version '1.1.4'
+    id "java"
+    id "jacoco"
+    id "checkstyle"
+    id "org.springframework.boot" version "3.2.0"
+    id "io.spring.dependency-management" version "1.1.4"
+    id "org.sonarqube" version "4.4.1.3373"
 }
 
-group = 'com.example'
-version = '0.0.3'
+ext["testcontainers.version"] = "1.21.4"
+
+group = "com.example"
+version = "0.0.3"
 
 java {
-    sourceCompatibility = '17'
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 configurations {
@@ -23,16 +29,66 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.projectlombok:lombok:1.18.28'
-    compileOnly 'org.projectlombok:lombok:1.18.28'
-    implementation 'org.postgresql:postgresql:42.6.0'
-    implementation 'com.zaxxer:HikariCP:5.0.1'
-    annotationProcessor 'org.projectlombok:lombok:1.18.28'
-    implementation 'org.flywaydb:flyway-core:9.22.1'
-    implementation 'org.springframework.security:spring-security-crypto:6.1.5'
+    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation "org.springframework.boot:spring-boot-starter-data-jpa"
+    implementation "org.springframework.boot:spring-boot-starter-validation"
+    implementation "org.flywaydb:flyway-core"
+    implementation "org.springframework.security:spring-security-crypto"
+    runtimeOnly "org.postgresql:postgresql"
+    compileOnly "org.projectlombok:lombok"
+    annotationProcessor "org.projectlombok:lombok"
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testImplementation "org.testcontainers:junit-jupiter:1.21.4"
+    testImplementation "org.testcontainers:postgresql:1.21.4"
 }
-jar {
-    enabled = true
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+checkstyle {
+    toolVersion = "10.12.7"
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+tasks.register("unitTest", Test) {
+    group = "verification"
+    description = "Runs tests not tagged integration."
+    useJUnitPlatform { excludeTags "integration" }
+}
+
+tasks.register("integrationTest", Test) {
+    group = "verification"
+    description = "Runs tests tagged integration."
+    useJUnitPlatform { includeTags "integration" }
+    shouldRunAfter tasks.named("unitTest")
+}
+
+tasks.named("jacocoTestReport") {
+    dependsOn tasks.named("test")
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.named("jacocoTestCoverageVerification") {
+    dependsOn tasks.named("test")
+    violationRules {
+        rule {
+            element = "CLASS"
+            includes = ["com.example.alexandria.service.*Service"]
+            limit {
+                counter = "LINE"
+                minimum = 0.70
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn tasks.named("jacocoTestCoverageVerification")
 }
