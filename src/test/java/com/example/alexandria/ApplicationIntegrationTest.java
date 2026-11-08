@@ -1,5 +1,8 @@
 package com.example.alexandria;
 
+import static org.hamcrest.Matchers.not;
+import java.util.Map;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -149,16 +152,16 @@ class ApplicationIntegrationTest {
     void clientSuppliedIdCannotOverwriteExistingStudent() throws Exception {
         String create = "{\"id\":200,\"full_name\":\"Student New\",\"login\":\"newstudent\",\"password\":\"secret123\",\"group_name\":\"A1\"}";
         mvc.perform(post("/api/students/create").contentType(MediaType.APPLICATION_JSON).content(create))
-                .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.id").value(org.hamcrest.Matchers.not(200)));
+                .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.id").value(not(200)));
         assertThat(jdbc.queryForObject("SELECT login FROM students WHERE id = 200", String.class)).isEqualTo("student");
     }
 
     @Test
     void passwordByteLimitAccepts72Utf8BytesAndRejectsMore() throws Exception {
         String password = "é".repeat(36);
-        String valid = json.writeValueAsString(java.util.Map.of("full_name", "Student Unicode", "login", "unicode", "password", password, "group_name", "A1"));
+        String valid = json.writeValueAsString(Map.of("full_name", "Student Unicode", "login", "unicode", "password", password, "group_name", "A1"));
         mvc.perform(post("/api/students/create").contentType(MediaType.APPLICATION_JSON).content(valid)).andExpect(status().is2xxSuccessful());
-        String invalid = json.writeValueAsString(java.util.Map.of("full_name", "Student Unicode", "login", "unicode2", "password", password + "é", "group_name", "A1"));
+        String invalid = json.writeValueAsString(Map.of("full_name", "Student Unicode", "login", "unicode2", "password", password + "é", "group_name", "A1"));
         mvc.perform(post("/api/students/create").contentType(MediaType.APPLICATION_JSON).content(invalid)).andExpect(status().isBadRequest());
     }
 

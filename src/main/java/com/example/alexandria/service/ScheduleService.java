@@ -1,5 +1,8 @@
 package com.example.alexandria.service;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.example.alexandria.repository.ScheduleRepository;
 import com.example.alexandria.repository.entity.Group;
 import com.example.alexandria.repository.entity.Schedule;
@@ -19,7 +22,7 @@ public class ScheduleService {
     public ScheduleDTO findSchedule(Long id) {
         return scheduleRepository.findScheduleById(id)
                 .map(this::map)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Schedule not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found"));
     }
 
     public List<ScheduleDTO> findSchedules() {
@@ -52,7 +55,7 @@ public class ScheduleService {
     public void update(Long id, ScheduleDTO updatedSchedule) {
         validate(updatedSchedule);
         Schedule scheduleToUpdate = scheduleRepository.findById(id)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Schedule not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Schedule not found"));
 
         scheduleToUpdate.setSubject(Subject.builder().id(updatedSchedule.subjectId()).build());
         scheduleToUpdate.setGroup(Group.builder().id(updatedSchedule.groupId()).build());
@@ -81,7 +84,7 @@ public class ScheduleService {
     }
     private void validate(ScheduleDTO schedule) {
         if (schedule.dayOfWeek() == null || schedule.dayOfWeek().isBlank() || schedule.dayOfWeek().length() > 15 || schedule.lessonNum() < 1 || schedule.lessonNum() > 6 || schedule.weekType() < 1 || schedule.weekType() > 2 || schedule.groupId() <= 0 || schedule.teacherId() <= 0 || schedule.subjectId() <= 0) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid schedule");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid schedule");
         }
     }
 }

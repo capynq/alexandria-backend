@@ -1,5 +1,8 @@
 package com.example.alexandria.service;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.example.alexandria.repository.SubjectRepository;
 import com.example.alexandria.repository.TeacherRepository;
 import com.example.alexandria.repository.entity.Subject;
@@ -59,15 +62,15 @@ public class SubjectService {
 
     @Transactional
     public void assignSubjectsToTeacher(long teacherId, List<Long> subjectIds) {
-        var teacher = teacherRepository.findById(teacherId).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Teacher not found"));
+        var teacher = teacherRepository.findById(teacherId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found"));
         List<Subject> subjects = subjectRepository.findAllById(subjectIds);
         if (subjects.size() != subjectIds.stream().distinct().count()) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Subject not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Subject not found");
         }
         teacher.setSubjects(subjects);
         teacherRepository.save(teacher);
     }
     private void validate(SubjectDTO subject) {
-        if (subject.subjectName() == null || subject.subjectName().isBlank() || subject.subjectName().length() > 80) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid subject");
+        if (subject.subjectName() == null || subject.subjectName().isBlank() || subject.subjectName().length() > 80) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid subject");
     }
 }

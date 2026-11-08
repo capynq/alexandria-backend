@@ -1,13 +1,15 @@
 package com.example.alexandria.service.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.Builder;
 
 @Builder
 public record HomeworkDTO(
         long id,
-        @com.fasterxml.jackson.annotation.JsonProperty("subject_id") long subjectId,
-        @com.fasterxml.jackson.annotation.JsonProperty("group_id") long groupId,
-        @com.fasterxml.jackson.annotation.JsonProperty("teacher_id") long teacherId,
+        @JsonProperty("subject_id") long subjectId,
+        @JsonProperty("group_id") long groupId,
+        @JsonProperty("teacher_id") long teacherId,
         String title,
         String description,
         String deadline

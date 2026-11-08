@@ -1,5 +1,8 @@
 package com.example.alexandria.controller;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.example.alexandria.service.dto.StudentDTO;
 import com.example.alexandria.service.StudentService;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +28,7 @@ public class StudentController {
 
     @GetMapping
     public List<StudentDTO> getStudents(@RequestParam(required = false) String password) {
-        if (password != null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Password query parameter is not supported");
+        if (password != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password query parameter is not supported");
         return studentService.findStudents();
     }
 

@@ -1,5 +1,8 @@
 package com.example.alexandria.service;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 
 import com.example.alexandria.repository.entity.Announcement;
 import com.example.alexandria.repository.AnnouncementRepository;
@@ -69,7 +72,7 @@ public class AnnouncementService {
     }
     private void validate(AnnouncementDTO value) {
         if (value.title() == null || value.title().isBlank() || value.title().length() > 100 || value.content() == null || value.content().isBlank()) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid announcement");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid announcement");
         }
     }
 }

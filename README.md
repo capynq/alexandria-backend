@@ -15,7 +15,6 @@ Java 17 Spring Boot API for groups, students, teachers, schedules, announcements
    docker compose up --build
    ```
 
-3. Run the requests in [API examples](docs/api-examples.md). They create their own records and use the returned IDs. The server listens on port 8080.
 
 To run the application outside Compose, point `DB_URL` at an accessible PostgreSQL instance, set `DB_USERNAME` and `DB_PASSWORD`, then run `./gradlew bootRun`. The Compose database URL uses the container hostname `db` and is not a host URL.
 
@@ -36,5 +35,3 @@ The Jenkins pipeline can optionally run Sonar with `SONAR_URL` and `SONAR_CREDEN
 Request fields retain snake_case names. The examples cover creation, retrieval and idempotent homework completion. Passwords are accepted for create and login but omitted from responses. Credential verification does not issue a token or session, and endpoint authorization is not implemented. Do not expose this service to untrusted networks without adding authorization.
 
 Browser access defaults to the origin `http://localhost:3000`. Set `APP_CORS_ALLOWED_ORIGINS` to a comma-separated list of explicitly trusted origins for another frontend. `GET /api/students` returns an unfiltered list and rejects a `password` query parameter; submit credentials in the login request body.
-
-See [architecture](docs/architecture.md), [demo script](docs/demo-script.md), and [presentation](docs/presentation.md). Back up existing databases and inspect their Flyway history before upgrading; baselining an unknown schema does not prove compatibility.

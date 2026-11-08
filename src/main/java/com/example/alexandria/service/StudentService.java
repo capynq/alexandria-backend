@@ -1,5 +1,7 @@
 package com.example.alexandria.service;
 
+import java.nio.charset.StandardCharsets;
+
 import com.example.alexandria.repository.StudentRepository;
 import com.example.alexandria.repository.entity.Group;
 import com.example.alexandria.repository.entity.Student;
@@ -96,7 +98,7 @@ public class StudentService {
     }
 
     private void requireCredentials(String login, String password) {
-        if (login == null || login.trim().length() < 3 || password == null || password.length() < 6 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+        if (login == null || login.trim().length() < 3 || password == null || password.length() < 6 || password.getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials");
         }
     }

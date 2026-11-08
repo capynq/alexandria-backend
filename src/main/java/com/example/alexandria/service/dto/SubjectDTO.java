@@ -1,10 +1,12 @@
 package com.example.alexandria.service.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.Builder;
 
 @Builder
 public record SubjectDTO(
         long id,
-        @com.fasterxml.jackson.annotation.JsonProperty("subject_name") String subjectName
+        @JsonProperty("subject_name") String subjectName
 ) {
 }
