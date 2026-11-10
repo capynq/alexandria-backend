@@ -1,5 +1,8 @@
 package com.example.alexandria.service;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 
 import com.example.alexandria.repository.entity.Announcement;
 import com.example.alexandria.repository.AnnouncementRepository;
@@ -21,9 +24,9 @@ public class AnnouncementService {
                 .id(announcement.getId())
                 .title(announcement.getTitle())
                 .content(announcement.getContent())
-                .author_id(announcement.getAuthorId().getId())
-                .created_at(announcement.getPostedAt())
-                .updated_at(announcement.getEditedAt())
+                .authorId(announcement.getAuthorId().getId())
+                .createdAt(announcement.getPostedAt())
+                .updatedAt(announcement.getEditedAt())
                 .build();
     }
 
@@ -51,19 +54,25 @@ public class AnnouncementService {
     }
 
     public void update(AnnouncementDTO announcement) {
-        var announce = announcementRepository.findAnnouncementByTitle(announcement.title()).orElseThrow();
+        validate(announcement);
+        var announce = announcement.id() > 0 ? announcementRepository.findById(announcement.id()).orElseThrow() : announcementRepository.findAnnouncementByTitle(announcement.title()).orElseThrow();
         announce.setTitle(announcement.title());
         announce.setContent(announcement.content());
         announcementRepository.save(announce);
     }
 
     public AnnouncementDTO create(AnnouncementDTO announcement) {
+        validate(announcement);
         var newAnnouncement = announcementRepository.save(Announcement.builder()
-                .id(announcement.id())
                 .title(announcement.title())
                 .content(announcement.content())
-                .authorId(Teacher.builder().id(announcement.author_id()).build())
+                .authorId(Teacher.builder().id(announcement.authorId()).build())
                 .build());
         return mapAnnouncements(newAnnouncement);
+    }
+    private void validate(AnnouncementDTO value) {
+        if (value.title() == null || value.title().isBlank() || value.title().length() > 100 || value.content() == null || value.content().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid announcement");
+        }
     }
 }

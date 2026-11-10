@@ -1,6 +1,7 @@
 package com.example.alexandria.service;
 
-import com.example.alexandria.exception.UserNotFoundException;
+import java.nio.charset.StandardCharsets;
+
 import com.example.alexandria.repository.StudentRepository;
 import com.example.alexandria.repository.entity.Group;
 import com.example.alexandria.repository.entity.Student;
@@ -9,6 +10,7 @@ import com.example.alexandria.service.dto.StudentDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -22,20 +24,20 @@ public class StudentService {
     public StudentDTO mapStudent(Student student) {
         return StudentDTO.builder()
                 .id(student.getId())
-                .full_name(student.getFullName())
+                .fullName(student.getFullName())
                 .login(student.getLogin())
-                .group_name(student.getGroupName())
-                .password(student.getPassword())
-                .build();
+                .groupName(student.getGroupName())
+                                .build();
     }
 
     public StudentDTO logIn(StudentDTO student) {
+        requireCredentials(student.login(), student.password());
         var foundStudent = studentRepository.findByLogin(student.login())
-                .orElseThrow(() -> new UserNotFoundException("Student not found with login: " + student.login()));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
         if (PasswordUtil.checkPassword(student.password(), foundStudent.getPassword())) {
             return mapStudent(foundStudent);
         } else {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
     }
 
@@ -57,6 +59,7 @@ public class StudentService {
     }
 
     public void update(String login, StudentDTO student) {
+        requireCredentials(student.login(), student.password());
         var studentToUpdate = studentRepository.findByLogin(login).orElseThrow();
         if (!PasswordUtil.checkPassword(student.password(), studentToUpdate.getPassword())) {
             String hashedPassword = PasswordUtil.hashPassword(student.password());
@@ -66,28 +69,38 @@ public class StudentService {
         studentRepository.save(studentToUpdate);
     }
 
+    @Transactional
     public StudentDTO create(StudentDTO student) {
+        requireCredentials(student.login(), student.password());
+        if (student.fullName() == null || student.fullName().trim().length() < 5) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid full name");
+        if (student.groupName() == null || student.groupName().isBlank() || student.groupName().length() > 8) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid group");
         String hashedPassword = PasswordUtil.hashPassword(student.password());
-        Group group = groupService.findGroup(student.group_name());
+        Group group = groupService.findGroup(student.groupName());
         if (group == null) {
             groupService.create(Group.builder()
-                    .name(student.group_name())
+                    .name(student.groupName())
                     .build());
         }
         var savedStudent = studentRepository.save(Student.builder()
-                .id(student.id())
-                .fullName(student.full_name())
+                .fullName(student.fullName())
                 .login(student.login())
                 .password(hashedPassword)
-                .groupName(student.group_name())
+                .groupName(student.groupName())
                 .build());
         return mapStudent(savedStudent);
     }
 
+    @Transactional
     public List<StudentDTO> createStudents(List<StudentDTO> students) {
         return students.stream()
                 .map(this::create)
                 .toList();
+    }
+
+    private void requireCredentials(String login, String password) {
+        if (login == null || login.trim().length() < 3 || password == null || password.length() < 6 || password.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials");
+        }
     }
 
 }

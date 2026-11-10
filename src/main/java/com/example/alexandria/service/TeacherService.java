@@ -1,6 +1,7 @@
 package com.example.alexandria.service;
 
-import com.example.alexandria.exception.UserNotFoundException;
+import java.nio.charset.StandardCharsets;
+
 import com.example.alexandria.repository.TeacherRepository;
 import com.example.alexandria.repository.entity.Teacher;
 import com.example.alexandria.security.PasswordUtil;
@@ -31,31 +32,27 @@ public class TeacherService {
 
         List<SubjectDTO> subjectDTOs = teacher.getSubjects() != null ? teacher.getSubjects().stream().map(subject -> SubjectDTO.builder()
                 .id(subject.getId())
-                .subject_name(subject.getSubjectName())
+                .subjectName(subject.getSubjectName())
                 .build()).toList() : new ArrayList<>();
 
         return TeacherDTO.builder()
                 .id(teacher.getId())
-                .full_name(teacher.getFullName())
+                .fullName(teacher.getFullName())
                 .login(teacher.getLogin())
-                .is_admin(teacher.isAdmin())
-                .password(teacher.getPassword())
-                .groups(groupDTOs)
+                .isAdmin(teacher.isAdmin())
+                                .groups(groupDTOs)
                 .subjects(subjectDTOs)
                 .build();
     }
 
     public TeacherDTO logIn(TeacherDTO teacher) {
+        requireCredentials(teacher.login(), teacher.password());
         var foundTeacher = teacherRepository.findByLogin(teacher.login())
-                .orElseThrow(() -> new UserNotFoundException("Teacher not found with login: " + teacher.login()));
-        log.info("Teacher found: {} {} {}", foundTeacher.getId(), foundTeacher.getLogin(), foundTeacher.getPassword());
-        log.info("Teacher password: {}", teacher.password());
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
         if (PasswordUtil.checkPassword(teacher.password(), foundTeacher.getPassword())) {
-            log.warn("Teacher authenticated: {}, Teacher password: {}", foundTeacher.getLogin(), foundTeacher.getPassword());
             return mapTeacher(foundTeacher);
         } else {
-            log.warn("Teacher not authenticated: {} {}, Teacher password: {}", foundTeacher.getId(), foundTeacher.getLogin(), foundTeacher.getPassword());
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
     }
 
@@ -80,23 +77,21 @@ public class TeacherService {
     public void update(String login, TeacherDTO teacher) {
         var teacherToUpdate = teacherRepository.findByLogin(login).orElseThrow();
         if (teacher.password() != null && !teacher.password().isEmpty()) {
-            log.info("Password has been changed");
+            if (teacher.password().length() < 6 || teacher.password().getBytes(StandardCharsets.UTF_8).length > 72) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid password");
             String hashedPassword = PasswordUtil.hashPassword(teacher.password());
             teacherToUpdate.setPassword(hashedPassword);
         }
-        else {
-            log.warn("Password has not been changed");
-        }
-        teacherToUpdate.setAdmin(teacher.is_admin());
         teacherRepository.save(teacherToUpdate);
     }
 
     public TeacherDTO create(TeacherDTO teacher) {
+        requireCredentials(teacher.login(), teacher.password());
+        if (teacher.fullName() == null || teacher.fullName().trim().length() < 5) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid full name");
         String hashedPassword = PasswordUtil.hashPassword(teacher.password());
         var savedTeacher = teacherRepository.save(Teacher.builder()
-                .fullName(teacher.full_name())
+                .fullName(teacher.fullName())
                 .login(teacher.login())
-                .isAdmin(teacher.is_admin())
+                .isAdmin(false)
                 .password(hashedPassword)
                 .build());
         return mapTeacher(savedTeacher);
@@ -125,11 +120,17 @@ public class TeacherService {
             subjectDTOs = teacher.getSubjects().stream()
                     .map(subject -> SubjectDTO.builder()
                             .id(subject.getId())
-                            .subject_name(subject.getSubjectName())
+                            .subjectName(subject.getSubjectName())
                             .build())
                     .toList();
         }
         return subjectDTOs;
+    }
+
+    private void requireCredentials(String login, String password) {
+        if (login == null || login.trim().length() < 3 || password == null || password.length() < 6 || password.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials");
+        }
     }
 
 }

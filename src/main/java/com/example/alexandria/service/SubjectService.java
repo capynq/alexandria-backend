@@ -1,5 +1,8 @@
 package com.example.alexandria.service;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.example.alexandria.repository.SubjectRepository;
 import com.example.alexandria.repository.TeacherRepository;
 import com.example.alexandria.repository.entity.Subject;
@@ -25,7 +28,7 @@ public class SubjectService {
     public SubjectDTO mapSubject(Subject subject) {
         return SubjectDTO.builder()
                 .id(subject.getId())
-                .subject_name(subject.getSubjectName())
+                .subjectName(subject.getSubjectName())
                 .build();
     }
 
@@ -36,17 +39,18 @@ public class SubjectService {
     }
 
     public SubjectDTO create(SubjectDTO subject) {
+        validate(subject);
         var savedSubject = subjectRepository.save(Subject.builder()
-                .id(subject.id())
-                .subjectName(subject.subject_name())
+                .subjectName(subject.subjectName())
                 .build());
         return mapSubject(savedSubject);
     }
 
     public SubjectDTO update(SubjectDTO subject) {
+        validate(subject);
         return subjectRepository.findSubjectById(subject.id())
                 .map(foundSubject -> {
-                    foundSubject.setSubjectName(subject.subject_name());
+                    foundSubject.setSubjectName(subject.subjectName());
                     return mapSubject(subjectRepository.save(foundSubject));
                 })
                 .orElseThrow();
@@ -58,9 +62,15 @@ public class SubjectService {
 
     @Transactional
     public void assignSubjectsToTeacher(long teacherId, List<Long> subjectIds) {
-        var teacher = teacherRepository.findById(teacherId).orElseThrow(() -> new RuntimeException("Teacher not found"));
+        var teacher = teacherRepository.findById(teacherId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found"));
         List<Subject> subjects = subjectRepository.findAllById(subjectIds);
+        if (subjects.size() != subjectIds.stream().distinct().count()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Subject not found");
+        }
         teacher.setSubjects(subjects);
         teacherRepository.save(teacher);
+    }
+    private void validate(SubjectDTO subject) {
+        if (subject.subjectName() == null || subject.subjectName().isBlank() || subject.subjectName().length() > 80) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid subject");
     }
 }

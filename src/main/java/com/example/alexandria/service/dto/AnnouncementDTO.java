@@ -1,5 +1,7 @@
 package com.example.alexandria.service.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.Builder;
 
 import java.time.Instant;
@@ -9,8 +11,8 @@ public record AnnouncementDTO (
     long id,
     String title,
     String content,
-    long author_id,
-    Instant created_at,
-    Instant updated_at
+    @JsonProperty("author_id") long authorId,
+    @JsonProperty("created_at") Instant createdAt,
+    @JsonProperty("updated_at") Instant updatedAt
 ) {
 }

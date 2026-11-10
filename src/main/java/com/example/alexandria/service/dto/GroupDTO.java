@@ -1,6 +1,6 @@
 package com.example.alexandria.service.dto;
 
-import lombok.*;
+import lombok.Builder;
 
 
 @Builder
